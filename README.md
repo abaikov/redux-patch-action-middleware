@@ -35,9 +35,10 @@ import { configureStore } from '@reduxjs/toolkit';
 import { createPatchActionMiddleware } from 'redux-patch-action-middleware';
 
 const store = configureStore({
-  reducer: rootReducer,
-  middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(createPatchActionMiddleware<RootState>())
+    reducer: rootReducer,
+    middleware: (getDefaultMiddleware) =>
+            getDefaultMiddleware()
+                .concat(createPatchActionMiddleware<RootState>())
 });
 ```
 
@@ -58,10 +59,25 @@ const incrementByAmount = createPatchedAction(
   (action: PayloadAction<{ amount: number }>, state: RootState) => ({
     ...action,
     payload: {
-      amount: Math.min(action.payload.amount, state.counter.maxIncrement)
+         amount: Math.min(action.payload.amount, state.counter.maxIncrement)
     }
   })
 );
+
+const counterSlice = createSlice({
+    name: 'counter',
+    initialState: { value: 0 },
+    reducers: {
+        // Regular reducers here
+    },
+    extraReducers: (builder) => {
+        // Add the patched action using builder
+        builder.addCase(incrementByAmount, (state, action) => {
+            // action.payload.amount will already be patched here
+            state.value += action.payload.patchedAmount;
+        });
+    }
+});
 ```
 
 #### 2. Using `createPatchedPayloadAction`
@@ -229,42 +245,14 @@ This approach provides several benefits:
 - Reduced type declaration boilerplate
 - Better IDE support and type checking
 
-### Using with Redux Toolkit Reducers
 
-The patched actions work seamlessly with Redux Toolkit's `createSlice` and builder pattern. You can use them in both `reducers` and `extraReducers`:
+## Future Plans
 
-```typescript
-import { createSlice } from '@reduxjs/toolkit';
-import { createPatchedPayloadAction } from 'redux-patch-action-middleware';
+### Planned Features
 
-// Create a patched action
-const incrementByAmount = createPatchedPayloadAction(
-    'counter/incrementByAmount',
-    (payload: { amount: number }, state: RootState) => ({
-        patchedAmount: Math.min(payload.amount, state.settings.maxIncrement)
-    })
-);
-
-const counterSlice = createSlice({
-    name: 'counter',
-    initialState: { value: 0 },
-    reducers: {
-        // Regular reducers here
-    },
-    extraReducers: (builder) => {
-        // Add the patched action using builder
-        builder.addCase(incrementByAmount, (state, action) => {
-        // action.payload.amount will already be patched here
-        state.value += action.payload.patchedAmount;
-        });
-    }
-});
-```
-
-The middleware will process the action before it reaches the reducer, so your reducer will receive the patched payload. This allows you to:
-- Keep your reducers focused on state updates
-- Handle cross-slice logic in the action patcher
-- Maintain clean separation of concerns
+#### Action Creator Integration
+- Allow passing action creators directly to patchers for tighter integration
+- Add utilities to patch actions directly in middleware configuration without component awareness
 
 ## Contributing
 
