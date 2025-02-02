@@ -1,0 +1,57 @@
+{
+  "name": "redux-patch-action-middleware",
+  "version": "1.0.0",
+  "description": "Patch action middleware for Redux",
+  "main": "dist/bundle.umd.js",
+  "module": "dist/bundle.esm.js",
+  "types": "dist/types/index.d.ts",
+  "scripts": {
+    "build": "rollup -c",
+    "test": "jest",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,md}\"",
+    "prepare": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abaikov/redux-patch-action-middleware.git"
+  },
+  "keywords": [
+    "redux",
+    "middleware",
+    "action",
+    "redux-middleware",
+    "patch-action",
+    "patch-action-middlware",
+    "redux-patch-action",
+    "redux-patch-action-middleware",
+    "redux-patch-action-payload-middleware",
+    "state-management",
+    "redux-toolkit",
+    "rtk",
+    "immutable",
+    "state",
+    "store",
+    "reducer",
+    "dispatch"
+  ],
+  "author": "Andrei Baikov",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/abaikov/redux-patch-action-middleware/issues"
+  },
+  "homepage": "https://github.com/abaikov/redux-patch-action-middleware#readme",
+  "peerDependencies": {
+    "@reduxjs/toolkit": "^1.9.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.2",
+    "@rollup/plugin-node-resolve": "^16.0.0",
+    "@rollup/plugin-typescript": "^12.1.2",
+    "@types/jest": "^29.5.14",
+    "jest": "^29.7.0",
+    "rollup": "^4.29.2",
+    "ts-jest": "^29.2.5",
+    "tslib": "^2.8.1",
+    "typescript": "^5.7.2"
+  }
+}
