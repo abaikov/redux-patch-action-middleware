@@ -1,8 +1,12 @@
-import { configureStore, createSlice } from '@reduxjs/toolkit';
+import { configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import {
 	createPatchedAction,
 	createPatchActionMiddleware,
 	createPatchedPayloadAction,
+	ActionPatcher,
+	createActionPatcher,
+	createPayloadPatcher,
+	PayloadPatcher,
 } from './';
 
 interface RootState {
@@ -10,39 +14,63 @@ interface RootState {
 	extra: number;
 }
 
+const createAppActionPatcher: <P, IP>(
+	actionPatcher: ActionPatcher<RootState, P, IP>,
+) => ActionPatcher<RootState, P, IP> = createActionPatcher;
+
+const createAppPayloadActionPatcher: <P, IP>(
+	payloadPatcher: PayloadPatcher<RootState, P, IP>,
+) => PayloadPatcher<RootState, P, IP> = createPayloadPatcher;
+
 describe('patchActionMiddleware', () => {
 	const createAppPatchedAction = createPatchedAction<RootState>();
 	const createAppPatchedPayloadAction =
 		createPatchedPayloadAction<RootState>();
-	const patchedAppIncrement = createAppPatchedAction<{ amount: number }>(
+	const amountPatcher = createAppActionPatcher(
+		(action: PayloadAction<{ amount: number }>, state) => {
+			return {
+				...action,
+				payload: {
+					patchedAmount:
+						action.payload.amount + state.extra + state.amount,
+				},
+			};
+		},
+	);
+	const amountPayloadPatcher = createAppPayloadActionPatcher(
+		(payload: { amount: number }, state) => {
+			return {
+				patchedAmount: payload.amount + state.extra + state.amount,
+			};
+		},
+	);
+
+	const patchedAppIncrement = createAppPatchedAction(
 		'test/app-increment',
-		(action, state) => ({
-			...action,
-			payload: {
-				amount: action.payload.amount + state.extra + state.amount,
-			},
-		}),
+		(action: PayloadAction<{ amount: number }>, state) => {
+			return {
+				...action,
+				payload: {
+					patchedAmount:
+						action.payload.amount + state.extra + state.amount,
+				},
+			};
+		},
 	);
-	const patchedIncrement = createPatchedAction<RootState, { amount: number }>(
+	const patchedIncrement = createPatchedAction(
 		'test/increment',
-		(action, state) => ({
-			...action,
-			payload: {
-				amount: action.payload.amount + state.extra + state.amount,
-			},
+		amountPatcher,
+	);
+	const payloadPatchedAppIncrement = createAppPatchedPayloadAction(
+		'test/app-payload-increment',
+		(payload: { amount: number }, state) => ({
+			patchedAmount: payload.amount + state.extra + state.amount,
 		}),
 	);
-	const payloadPatchedAppIncrement = createAppPatchedPayloadAction<{
-		amount: number;
-	}>('test/app-payload-increment', (payload, state) => ({
-		amount: payload.amount + state.extra + state.amount,
-	}));
-	const payloadPatchedIncrement = createPatchedPayloadAction<
-		RootState,
-		{ amount: number }
-	>('test/payload-increment', (payload, state) => ({
-		amount: payload.amount + state.extra + state.amount,
-	}));
+	const payloadPatchedIncrement = createPatchedPayloadAction(
+		'test/payload-increment',
+		amountPayloadPatcher,
+	);
 
 	const testSlice = createSlice({
 		name: 'test',
@@ -56,16 +84,16 @@ describe('patchActionMiddleware', () => {
 		extraReducers: (builder) => {
 			builder
 				.addCase(patchedAppIncrement, (state, action) => {
-					state.amount = action.payload.amount;
+					state.amount = action.payload.patchedAmount;
 				})
 				.addCase(patchedIncrement, (state, action) => {
-					state.amount = action.payload.amount;
+					state.amount = action.payload.patchedAmount;
 				})
 				.addCase(payloadPatchedAppIncrement, (state, action) => {
-					state.amount = action.payload.amount;
+					state.amount = action.payload.patchedAmount;
 				})
 				.addCase(payloadPatchedIncrement, (state, action) => {
-					state.amount = action.payload.amount;
+					state.amount = action.payload.patchedAmount;
 				});
 		},
 	});

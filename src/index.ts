@@ -7,10 +7,16 @@ import {
 	ActionCreatorWithPreparedPayload,
 } from '@reduxjs/toolkit';
 
+// ACTION PATCHER
+
 export type ActionPatcher<S, IP, OP> = (
 	action: PayloadAction<IP>,
 	state: S,
 ) => Omit<PayloadAction<OP>, 'type'>;
+
+export const createActionPatcher = <S, IP, OP>(
+	actionPatcher: ActionPatcher<S, IP, OP>,
+) => actionPatcher;
 
 const actionPatchers = new Map<string, ActionPatcher<any, any, any>>();
 
@@ -23,12 +29,12 @@ export function createPatchedAction<S>(): <
 	actionPatcher: ActionPatcher<S, IP, OP>,
 ) => ActionCreatorWithPreparedPayload<[payload: IP], OP, T>;
 
-export function createPatchedAction<S, IP, OP = IP, T extends string = string>(
+export function createPatchedAction<S, IP, OP, T extends string = string>(
 	type: T,
 	actionPatcher: ActionPatcher<S, IP, OP>,
 ): ActionCreatorWithPreparedPayload<[payload: IP], OP, T>;
 
-export function createPatchedAction<S, IP, OP = IP, T extends string = string>(
+export function createPatchedAction<S, IP, OP, T extends string = string>(
 	typeOrUndefined?: T,
 	actionPatcher?: ActionPatcher<S, IP, OP>,
 ) {
@@ -53,9 +59,17 @@ export function createPatchedAction<S, IP, OP = IP, T extends string = string>(
 	>;
 }
 
+// PAYLOAD PATCHER
+
+export type PayloadPatcher<S, IP, OP> = (payload: IP, state: S) => OP;
+
+export const createPayloadPatcher = <S, IP, OP>(
+	payloadPatcher: PayloadPatcher<S, IP, OP>,
+) => payloadPatcher;
+
 export function createPatchedPayloadAction<S>(): <
 	IP,
-	OP = IP,
+	OP,
 	T extends string = string,
 >(
 	type: T,
@@ -65,7 +79,7 @@ export function createPatchedPayloadAction<S>(): <
 export function createPatchedPayloadAction<
 	S,
 	IP,
-	OP = IP,
+	OP,
 	T extends string = string,
 >(
 	type: T,
@@ -75,7 +89,7 @@ export function createPatchedPayloadAction<
 export function createPatchedPayloadAction<
 	S,
 	IP,
-	OP = IP,
+	OP,
 	T extends string = string,
 >(typeOrUndefined?: T, payloadPatcher?: (payload: IP, state: S) => OP) {
 	if (!typeOrUndefined || !payloadPatcher) {
@@ -104,6 +118,8 @@ export function createPatchedPayloadAction<
 		T
 	>;
 }
+
+// MIDDLEWARE
 
 export function createPatchActionMiddleware<S>() {
 	return (api: MiddlewareAPI<Dispatch<AnyAction>, S>) =>

@@ -51,24 +51,11 @@ This method gives you full control over the action object:
 
 ```typescript
 import { createPatchedAction } from 'redux-patch-action-middleware';
+import { PayloadAction } from '@reduxjs/toolkit';
 
-// Curried usage
-const createPatchedActionWithState = createPatchedAction<RootState>();
-
-const incrementByAmount = createPatchedActionWithState<{ amount: number }>(
+const incrementByAmount = createPatchedAction(
   'counter/incrementByAmount',
-  (action, state) => ({
-    ...action,
-    payload: {
-      amount: Math.min(action.payload.amount, state.counter.maxIncrement)
-    }
-  })
-);
-
-// Direct usage
-const incrementByAmount = createPatchedAction<RootState, { amount: number }>(
-  'counter/incrementByAmount',
-  (action, state) => ({
+  (action: PayloadAction<{ amount: number }>, state: RootState) => ({
     ...action,
     payload: {
       amount: Math.min(action.payload.amount, state.counter.maxIncrement)
@@ -87,17 +74,9 @@ import { createPatchedPayloadAction } from 'redux-patch-action-middleware';
 // Curried usage
 const createPatchedPayloadActionWithState = createPatchedPayloadAction<RootState>();
 
-const incrementByAmount = createPatchedPayloadActionWithState<{ amount: number }>(
+const incrementByAmount = createPatchedPayloadActionWithState(
   'counter/incrementByAmount',
-  (payload, state) => ({
-    amount: Math.min(payload.amount, state.counter.maxIncrement)
-  })
-);
-
-// Direct usage
-const incrementByAmount = createPatchedPayloadAction<RootState, { amount: number }>(
-  'counter/incrementByAmount',
-  (payload, state) => ({
+  (payload: { amount: number }, state: RootState) => ({
     amount: Math.min(payload.amount, state.counter.maxIncrement)
   })
 );
@@ -157,28 +136,98 @@ const createAppPatchedAction = createPatchedAction<RootState>();
 const createAppPatchedPayloadAction = createPatchedPayloadAction<RootState>();
 
 // Use them throughout your app with full type inference
-const updateUser = createAppPatchedAction<{ id: string; data: Partial<User> }, { id: string; data: User }>(
-  'users/update',
-  (action, state) => ({
-    ...action,
-    payload: {
-      id: action.payload.id,
-      data: {
-        ...state.users[action.payload.id],
-        ...action.payload.data
-      }
-    }
-  })
+const updateUser = createAppPatchedAction(
+    'users/update',
+    (action: PayloadAction<{ id: string; data: Partial<User> }>, state) => ({
+        ...action,
+        payload: {
+        id: action.payload.id,
+        data: {
+            ...state.users[action.payload.id],
+            ...action.payload.data
+        }
+        }
+    })
 );
 
 // Simplified payload-only version
-const updateCounter = createAppPatchedPayloadAction<{ value: number }>(
-  'counter/update',
-  (payload, state) => ({
-    value: Math.min(payload.value, state.counter.maxValue)
-  })
+const updateCounter = createAppPatchedPayloadAction(
+    'counter/update',
+    (payload: { value: number }, state) => ({
+        value: Math.min(payload.value, state.counter.maxValue)
+    })
 );
 ```
+
+### Creating App-Wide Action Patchers
+
+You can create a strongly-typed `AppActionPatcher` for your application by providing your `RootState` type:
+
+```typescript
+// Define your app-specific ActionPatcher type
+type AppActionPatcher<P, IP> = ActionPatcher<RootState, P, IP>;
+
+const createAppActionPatcher: <P, IP>(
+	actionPatcher: AppActionPatcher<P, IP>,
+) => AppActionPatcher<P, IP> = createActionPatcher;
+
+// Or you can use the simpler PayloadPatcher type
+const createAppPayloadActionPatcher: <P, IP>(
+	payloadPatcher: PayloadPatcher<RootState, P, IP>,
+) => AppActionPatcher<P, IP> = createPayloadPatcher;
+
+// Then you can use these patchers in your actions
+
+const amountPatcher = createAppActionPatcher(
+    (action: PayloadAction<{ amount: number }>, state) => {
+        return {
+            ...action,
+            payload: {
+                patchedAmount:
+                    action.payload.amount + state.amount,
+            },
+        };
+    },
+);
+const amountPayloadPatcher = createAppPayloadActionPatcher(
+    (payload: { amount: number }, state) => {
+        return {
+            patchedAmount: payload.amount + state.amount,
+        };
+    },
+);
+
+// Or just create reusable action patchers with proper typing
+const validateAmount = (action: PayloadAction<{ amount: number }>, state: RootState) => ({
+    ...action,
+    payload: {
+        amount: Math.min(action.payload.amount, state.settings.maxAmount)
+    }
+});
+
+const ensureUserExists = (action: PayloadAction<{ userId: string; data: Partial<User> }>, state: RootState) => ({
+    ...action,
+    payload: {
+        userId: action.payload.userId,
+        data: {
+        ...action.payload.data,
+        user: state.users[action.payload.userId] ?? { id: action.payload.userId }
+        }
+    }
+});
+
+// Use these typed patchers across your application
+const incrementCounter = createPatchedAction('counter/increment', validateAmount);
+const addToBalance = createPatchedAction('wallet/add', validateAmount);
+const updateUserProfile = createPatchedAction('users/updateProfile', ensureUserExists);
+const updateUserSettings = createPatchedAction('users/updateSettings', ensureUserExists);
+```
+
+This approach provides several benefits:
+- Full type inference for state access
+- Consistent typing across all action patchers
+- Reduced type declaration boilerplate
+- Better IDE support and type checking
 
 ### Using with Redux Toolkit Reducers
 
@@ -189,26 +238,26 @@ import { createSlice } from '@reduxjs/toolkit';
 import { createPatchedPayloadAction } from 'redux-patch-action-middleware';
 
 // Create a patched action
-const incrementByAmount = createPatchedPayloadAction<RootState, { amount: number }>(
-  'counter/incrementByAmount',
-  (payload, state) => ({
-    amount: Math.min(payload.amount, state.settings.maxIncrement)
-  })
+const incrementByAmount = createPatchedPayloadAction(
+    'counter/incrementByAmount',
+    (payload: { amount: number }, state: RootState) => ({
+        patchedAmount: Math.min(payload.amount, state.settings.maxIncrement)
+    })
 );
 
 const counterSlice = createSlice({
-  name: 'counter',
-  initialState: { value: 0 },
-  reducers: {
-    // Regular reducers here
-  },
-  extraReducers: (builder) => {
-    // Add the patched action using builder
-    builder.addCase(incrementByAmount, (state, action) => {
-      // action.payload.amount will already be patched here
-      state.value += action.payload.amount;
-    });
-  }
+    name: 'counter',
+    initialState: { value: 0 },
+    reducers: {
+        // Regular reducers here
+    },
+    extraReducers: (builder) => {
+        // Add the patched action using builder
+        builder.addCase(incrementByAmount, (state, action) => {
+        // action.payload.amount will already be patched here
+        state.value += action.payload.patchedAmount;
+        });
+    }
 });
 ```
 
