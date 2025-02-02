@@ -91,10 +91,10 @@ import { createPatchedPayloadAction } from 'redux-patch-action-middleware';
 const createPatchedPayloadActionWithState = createPatchedPayloadAction<RootState>();
 
 const incrementByAmount = createPatchedPayloadActionWithState(
-  'counter/incrementByAmount',
-  (payload: { amount: number }, state: RootState) => ({
-    amount: Math.min(payload.amount, state.counter.maxIncrement)
-  })
+    'counter/incrementByAmount',
+    (payload: { amount: number }, state: RootState) => ({
+        amount: Math.min(payload.amount, state.counter.maxIncrement)
+    })
 );
 ```
 
@@ -157,11 +157,11 @@ const updateUser = createAppPatchedAction(
     (action: PayloadAction<{ id: string; data: Partial<User> }>, state) => ({
         ...action,
         payload: {
-        id: action.payload.id,
-        data: {
-            ...state.users[action.payload.id],
-            ...action.payload.data
-        }
+            id: action.payload.id,
+            data: {
+                ...state.users[action.payload.id],
+                ...action.payload.data
+            }
         }
     })
 );
@@ -226,17 +226,30 @@ const ensureUserExists = (action: PayloadAction<{ userId: string; data: Partial<
     payload: {
         userId: action.payload.userId,
         data: {
-        ...action.payload.data,
-        user: state.users[action.payload.userId] ?? { id: action.payload.userId }
+            ...action.payload.data,
+            user: state.users[action.payload.userId] ?? 
+                { id: action.payload.userId }
         }
     }
 });
 
 // Use these typed patchers across your application
-const incrementCounter = createPatchedAction('counter/increment', validateAmount);
-const addToBalance = createPatchedAction('wallet/add', validateAmount);
-const updateUserProfile = createPatchedAction('users/updateProfile', ensureUserExists);
-const updateUserSettings = createPatchedAction('users/updateSettings', ensureUserExists);
+const incrementCounter = createPatchedAction(
+    'counter/increment', 
+    validateAmount
+);
+const addToBalance = createPatchedAction(
+    'wallet/add', 
+    validateAmount
+);
+const updateUserProfile = createPatchedAction(
+    'users/updateProfile', 
+    ensureUserExists
+);
+const updateUserSettings = createPatchedAction(
+    'users/updateSettings', 
+    ensureUserExists
+);
 ```
 
 This approach provides several benefits:
