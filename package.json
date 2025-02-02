@@ -1,6 +1,6 @@
 {
   "name": "redux-patch-action-middleware",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Patch action middleware for Redux",
   "main": "dist/bundle.umd.js",
   "module": "dist/bundle.esm.js",

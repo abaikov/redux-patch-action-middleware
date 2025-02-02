@@ -97,26 +97,22 @@ export function createPatchedPayloadAction<
 			type: T2,
 			payloadPatcher: (payload: IP2, state: S) => OP2,
 		) => {
-			actionPatchers.set(type, (action, state) => ({
-				...action,
-				payload: payloadPatcher(action.payload, state),
-			}));
-			return createAction(type) as ActionCreatorWithPreparedPayload<
-				[payload: IP2],
-				OP2,
-				T2
-			>;
+			return createPatchedAction(
+				type,
+				(action: PayloadAction<IP2>, state: S) => ({
+					...action,
+					payload: payloadPatcher(action.payload, state),
+				}),
+			);
 		};
 	}
-	actionPatchers.set(typeOrUndefined, (action, state) => ({
-		...action,
-		payload: payloadPatcher(action.payload, state),
-	}));
-	return createAction(typeOrUndefined) as ActionCreatorWithPreparedPayload<
-		[payload: IP],
-		OP,
-		T
-	>;
+	return createPatchedAction(
+		typeOrUndefined,
+		(action: PayloadAction<IP>, state: S) => ({
+			...action,
+			payload: payloadPatcher(action.payload, state),
+		}),
+	);
 }
 
 // MIDDLEWARE
