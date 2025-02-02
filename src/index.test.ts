@@ -23,6 +23,7 @@ const createAppPayloadActionPatcher: <P, IP>(
 ) => PayloadPatcher<RootState, P, IP> = createPayloadPatcher;
 
 describe('patchActionMiddleware', () => {
+	const patchActionMiddleware = createPatchActionMiddleware<RootState>();
 	const createAppPatchedAction = createPatchedAction<RootState>();
 	const createAppPatchedPayloadAction =
 		createPatchedPayloadAction<RootState>();
@@ -71,6 +72,15 @@ describe('patchActionMiddleware', () => {
 		'test/payload-increment',
 		amountPayloadPatcher,
 	);
+	const localPatchedIncrement = patchActionMiddleware.createPatchedAction(
+		'test/local-increment',
+		amountPatcher,
+	);
+	const localPatchedPayloadIncrement =
+		patchActionMiddleware.createPatchedPayloadAction(
+			'test/local-payload-increment',
+			amountPayloadPatcher,
+		);
 
 	const testSlice = createSlice({
 		name: 'test',
@@ -92,6 +102,12 @@ describe('patchActionMiddleware', () => {
 				.addCase(payloadPatchedAppIncrement, (state, action) => {
 					state.amount = action.payload.patchedAmount;
 				})
+				.addCase(localPatchedIncrement, (state, action) => {
+					state.amount = action.payload.patchedAmount;
+				})
+				.addCase(localPatchedPayloadIncrement, (state, action) => {
+					state.amount = action.payload.patchedAmount;
+				})
 				.addCase(payloadPatchedIncrement, (state, action) => {
 					state.amount = action.payload.patchedAmount;
 				});
@@ -100,7 +116,7 @@ describe('patchActionMiddleware', () => {
 	const store = configureStore({
 		reducer: testSlice.reducer,
 		middleware: (getDefaultMiddleware) =>
-			getDefaultMiddleware().concat(createPatchActionMiddleware()),
+			getDefaultMiddleware().concat(patchActionMiddleware.middleware),
 	});
 
 	beforeEach(() => {
@@ -142,6 +158,18 @@ describe('patchActionMiddleware', () => {
 		expect(store.getState().extra).toBe(2);
 		store.dispatch(payloadPatchedIncrement({ amount: 2 }));
 		expect(store.getState().amount).toBe(8);
+		expect(store.getState().extra).toBe(2);
+	});
+
+	it('test localPatchedIncrement', () => {
+		store.dispatch(localPatchedIncrement({ amount: 2 }));
+		expect(store.getState().amount).toBe(4);
+		expect(store.getState().extra).toBe(2);
+	});
+
+	it('test localPatchedPayloadIncrement', () => {
+		store.dispatch(localPatchedPayloadIncrement({ amount: 2 }));
+		expect(store.getState().amount).toBe(4);
 		expect(store.getState().extra).toBe(2);
 	});
 });

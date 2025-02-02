@@ -34,11 +34,13 @@ First, add the middleware to your Redux store:
 import { configureStore } from '@reduxjs/toolkit';
 import { createPatchActionMiddleware } from 'redux-patch-action-middleware';
 
+export const patchActionMiddleware = createPatchActionMiddleware<RootState>();
+
 const store = configureStore({
     reducer: rootReducer,
     middleware: (getDefaultMiddleware) =>
             getDefaultMiddleware()
-                .concat(createPatchActionMiddleware<RootState>())
+                .concat(patchActionMiddleware.middleware)
 });
 ```
 
@@ -46,51 +48,53 @@ const store = configureStore({
 
 There are two main ways to create patched actions:
 
-#### 1. Using `createPatchedAction`
+#### 1. Using Instance-Specific Action Creators
 
-This method gives you full control over the action object:
+The middleware instance provides its own action creators that are scoped to that instance:
 
 ```typescript
-import { createPatchedAction } from 'redux-patch-action-middleware';
+// These actions will only work with this specific middleware instance
+const incrementByAmount = patchActionMiddleware.createPatchedAction(
+    'counter/incrementByAmount',
+    (action: PayloadAction<{ amount: number }>, state) => ({
+        ...action,
+        payload: {
+            amount: Math.min(action.payload.amount, state.counter.maxIncrement)
+        }
+    })
+);
+
+// Similarly for payload-only patching
+const updateUser = patchActionMiddleware.createPatchedPayloadAction(
+    'users/update',
+    (payload: { id: string; data: UserData }, state) => ({
+        id: payload.id,
+        data: {
+            ...payload.data,
+            lastModified: state.app.currentTimestamp
+        }
+    })
+);
+```
+
+#### 2. Using Global Action Creators
+
+
+```typescript
+import { createPatchedAction, createPatchedPayloadAction } from 'redux-patch-action-middleware';
 import { PayloadAction } from '@reduxjs/toolkit';
 
 const incrementByAmount = createPatchedAction(
-  'counter/incrementByAmount',
-  (action: PayloadAction<{ amount: number }>, state: RootState) => ({
-    ...action,
-    payload: {
-         amount: Math.min(action.payload.amount, state.counter.maxIncrement)
-    }
-  })
+    'counter/incrementByAmount',
+    (action: PayloadAction<{ amount: number }>, state: RootState) => ({
+        ...action,
+        payload: {
+            amount: Math.min(action.payload.amount, state.counter.maxIncrement)
+        }
+    })
 );
 
-const counterSlice = createSlice({
-    name: 'counter',
-    initialState: { value: 0 },
-    reducers: {
-        // Regular reducers here
-    },
-    extraReducers: (builder) => {
-        // Add the patched action using builder
-        builder.addCase(incrementByAmount, (state, action) => {
-            // action.payload.amount will already be patched here
-            state.value += action.payload.patchedAmount;
-        });
-    }
-});
-```
-
-#### 2. Using `createPatchedPayloadAction`
-
-This is a simplified version that only focuses on patching the payload:
-
-```typescript
-import { createPatchedPayloadAction } from 'redux-patch-action-middleware';
-
-// Curried usage
-const createPatchedPayloadActionWithState = createPatchedPayloadAction<RootState>();
-
-const incrementByAmount = createPatchedPayloadActionWithState(
+const incrementByAmount = createPatchedPayloadAction(
     'counter/incrementByAmount',
     (payload: { amount: number }, state: RootState) => ({
         amount: Math.min(payload.amount, state.counter.maxIncrement)
@@ -105,6 +109,64 @@ Use the created action creators like any other Redux action:
 ```typescript
 // Dispatch the action
 dispatch(incrementByAmount({ amount: 10 }));
+```
+
+### Working with Redux
+
+The middleware integrates seamlessly with Redux and Redux Toolkit. Here's how to use it with different Redux patterns:
+
+#### With createSlice
+
+```typescript
+import { createSlice } from '@reduxjs/toolkit';
+
+// Create your patched action
+const incrementByAmount = patchActionMiddleware.createPatchedAction(
+    'counter/incrementByAmount',
+    (action: PayloadAction<number>, state) => ({
+        ...action,
+        payload: Math.min(action.payload, state.settings.maxIncrement)
+    })
+);
+
+// Use it in your slice
+const counterSlice = createSlice({
+    name: 'counter',
+    initialState: { value: 0 },
+    reducers: {
+        // Regular reducers here
+    },
+    extraReducers: (builder) => {
+        builder.addCase(incrementByAmount, (state, action) => {
+            // action.payload is already patched here
+            state.value += action.payload;
+        });
+    }
+});
+```
+
+#### With Redux Thunks
+
+```typescript
+import { createAsyncThunk } from '@reduxjs/toolkit';
+
+const updateUserData = patchActionMiddleware.createPatchedPayloadAction(
+    'users/updateData',
+    (payload: UserData, state: RootState) => ({
+        ...payload,
+        lastModified: state.app.timestamp
+    })
+);
+
+// Use in thunks
+const saveUser = createAsyncThunk(
+    'users/save',
+    async (userData: UserData, { dispatch }) => {
+        // The action will be patched before reaching reducers
+        dispatch(updateUserData(userData));
+        // ... rest of thunk logic
+    }
+);
 ```
 
 ## API Reference

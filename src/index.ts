@@ -18,7 +18,7 @@ export const createActionPatcher = <S, IP, OP>(
 	actionPatcher: ActionPatcher<S, IP, OP>,
 ) => actionPatcher;
 
-const actionPatchers = new Map<string, ActionPatcher<any, any, any>>();
+const globalActionPatchers = new Map<string, ActionPatcher<any, any, any>>();
 
 export function createPatchedAction<S>(): <
 	IP,
@@ -27,23 +27,26 @@ export function createPatchedAction<S>(): <
 >(
 	type: T,
 	actionPatcher: ActionPatcher<S, IP, OP>,
+	patchers?: Map<string, ActionPatcher<any, any, any>>,
 ) => ActionCreatorWithPreparedPayload<[payload: IP], OP, T>;
 
 export function createPatchedAction<S, IP, OP, T extends string = string>(
 	type: T,
 	actionPatcher: ActionPatcher<S, IP, OP>,
+	patchers?: Map<string, ActionPatcher<any, any, any>>,
 ): ActionCreatorWithPreparedPayload<[payload: IP], OP, T>;
 
 export function createPatchedAction<S, IP, OP, T extends string = string>(
 	typeOrUndefined?: T,
 	actionPatcher?: ActionPatcher<S, IP, OP>,
+	patchers: Map<string, ActionPatcher<any, any, any>> = globalActionPatchers,
 ) {
 	if (!typeOrUndefined || !actionPatcher) {
 		return <IP2, OP2 = IP2, T2 extends string = string>(
 			type: T2,
 			actionPatcher: ActionPatcher<S, IP2, OP2>,
 		) => {
-			actionPatchers.set(type, actionPatcher);
+			patchers.set(type, actionPatcher);
 			return createAction(type) as ActionCreatorWithPreparedPayload<
 				[payload: IP2],
 				OP2,
@@ -51,7 +54,7 @@ export function createPatchedAction<S, IP, OP, T extends string = string>(
 			>;
 		};
 	}
-	actionPatchers.set(typeOrUndefined, actionPatcher);
+	patchers.set(typeOrUndefined, actionPatcher);
 	return createAction(typeOrUndefined) as ActionCreatorWithPreparedPayload<
 		[payload: IP],
 		OP,
@@ -74,6 +77,7 @@ export function createPatchedPayloadAction<S>(): <
 >(
 	type: T,
 	payloadPatcher: (payload: IP, state: S) => OP,
+	patchers?: Map<string, ActionPatcher<any, any, any>>,
 ) => ActionCreatorWithPreparedPayload<[payload: IP], OP, T>;
 
 export function createPatchedPayloadAction<
@@ -84,6 +88,7 @@ export function createPatchedPayloadAction<
 >(
 	type: T,
 	payloadPatcher: (payload: IP, state: S) => OP,
+	patchers?: Map<string, ActionPatcher<any, any, any>>,
 ): ActionCreatorWithPreparedPayload<[payload: IP], OP, T>;
 
 export function createPatchedPayloadAction<
@@ -91,7 +96,11 @@ export function createPatchedPayloadAction<
 	IP,
 	OP,
 	T extends string = string,
->(typeOrUndefined?: T, payloadPatcher?: (payload: IP, state: S) => OP) {
+>(
+	typeOrUndefined?: T,
+	payloadPatcher?: (payload: IP, state: S) => OP,
+	patchers: Map<string, ActionPatcher<any, any, any>> = globalActionPatchers,
+) {
 	if (!typeOrUndefined || !payloadPatcher) {
 		return <IP2, OP2 = IP2, T2 extends string = string>(
 			type: T2,
@@ -103,6 +112,7 @@ export function createPatchedPayloadAction<
 					...action,
 					payload: payloadPatcher(action.payload, state),
 				}),
+				patchers,
 			);
 		};
 	}
@@ -112,23 +122,48 @@ export function createPatchedPayloadAction<
 			...action,
 			payload: payloadPatcher(action.payload, state),
 		}),
+		patchers,
 	);
 }
 
 // MIDDLEWARE
 
 export function createPatchActionMiddleware<S>() {
-	return (api: MiddlewareAPI<Dispatch<AnyAction>, S>) =>
-		(next: Dispatch<AnyAction>) =>
-		(action: PayloadAction<any>) => {
-			const patcher = actionPatchers.get(action.type);
-			if (patcher) {
-				const patchedFields = patcher(action, api.getState());
-				action = {
-					...patchedFields,
-					type: action.type,
-				};
-			}
-			return next(action);
-		};
+	const instancePatchers = new Map<string, ActionPatcher<any, any, any>>();
+
+	const createInstancePatchedAction = <IP, OP, T extends string = string>(
+		type: T,
+		actionPatcher: ActionPatcher<S, IP, OP>,
+	) => createPatchedAction(type, actionPatcher, instancePatchers);
+
+	const createInstancePatchedPayloadAction = <
+		IP,
+		OP,
+		T extends string = string,
+	>(
+		type: T,
+		payloadPatcher: (payload: IP, state: S) => OP,
+	) => createPatchedPayloadAction(type, payloadPatcher, instancePatchers);
+
+	return {
+		middleware:
+			(api: MiddlewareAPI<Dispatch<AnyAction>, S>) =>
+			(next: Dispatch<AnyAction>) =>
+			(action: PayloadAction<any>) => {
+				const instancePatcher = instancePatchers.get(action.type);
+				const globalPatcher = globalActionPatchers.get(action.type);
+				const patcher = instancePatcher || globalPatcher;
+
+				if (patcher) {
+					const patchedFields = patcher(action, api.getState());
+					action = {
+						...patchedFields,
+						type: action.type,
+					};
+				}
+				return next(action);
+			},
+		createPatchedAction: createInstancePatchedAction,
+		createPatchedPayloadAction: createInstancePatchedPayloadAction,
+	};
 }
